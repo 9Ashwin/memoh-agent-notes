@@ -4,15 +4,18 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 import shutil
 import subprocess
+from datetime import date
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
 CONTENT = ROOT / "content"
 OUTPUT = ROOT / "_site"
+REPOSITORY_URL = "https://github.com/9Ashwin/memoh-agent-notes"
 
 DOCS = [
     ("00_学习计划.md", "学习计划", "从全局地图开始，规划三条循序渐进的学习路线。", "导读"),
@@ -35,6 +38,30 @@ DOCS = [
 
 def page_name(filename: str) -> str:
     return f"{Path(filename).stem}.html"
+
+
+def plain_text(source: str) -> str:
+    text = re.sub(r"```.*?```", " ", source, flags=re.DOTALL)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"!?(?:\[([^\]]*)\])\([^)]+\)", r"\1", text)
+    text = re.sub(r"[#>*_|~-]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def reading_minutes(source: str) -> int:
+    compact = re.sub(r"\s+", "", plain_text(source))
+    return max(1, round(len(compact) / 550))
+
+
+def last_updated(filename: str) -> str:
+    result = subprocess.run(
+        ["git", "log", "-1", "--format=%cs", "--", f"content/{filename}"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return result.stdout.strip() or date.today().isoformat()
 
 
 def render_markdown(source: str) -> tuple[str, list[tuple[int, str, str]]]:
@@ -88,13 +115,27 @@ def shell(title: str, body: str, *, page_class: str, description: str = "") -> s
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{html.escape(description)}">
   <title>{html.escape(title)} · Memoh Agent 学习笔记</title>
+  <script>document.documentElement.dataset.theme=localStorage.getItem('memoh-theme')||'light'</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body class="{page_class}">
+<div class="site-tools" aria-label="站点工具">
+  <button class="tool-button search-button" type="button" aria-label="搜索文档"><span>⌕</span><small>搜索</small></button>
+  <button class="tool-button theme-button" type="button" aria-label="切换深色模式"><span aria-hidden="true">◐</span><small>主题</small></button>
+</div>
 {body}
+<dialog class="search-dialog" aria-labelledby="search-title">
+  <form method="dialog" class="search-panel">
+    <header><div><span>SEARCH</span><h2 id="search-title">搜索学习笔记</h2></div><button class="search-close" value="close" aria-label="关闭搜索">×</button></header>
+    <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" placeholder="输入架构、工具或源码关键词…" autocomplete="off"></label>
+    <div class="search-status">输入关键词，搜索全部 15 篇笔记</div>
+    <div class="search-results"></div>
+    <footer><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>Enter</kbd> 打开</span><span><kbd>Esc</kbd> 关闭</span></footer>
+  </form>
+</dialog>
 <script src="assets/site.js"></script>
 </body>
 </html>
@@ -144,6 +185,8 @@ def build_articles() -> None:
     for index, (filename, title, description, group) in enumerate(DOCS):
         source = (CONTENT / filename).read_text(encoding="utf-8")
         article, headings = render_markdown(source)
+        minutes = reading_minutes(source)
+        updated = last_updated(filename)
         previous = DOCS[index - 1] if index else None
         following = DOCS[index + 1] if index + 1 < len(DOCS) else None
         prev_link = (
@@ -165,7 +208,7 @@ def build_articles() -> None:
   </aside>
   <main class="article-main">
     <article class="article">
-      <header class="article-header"><div class="eyebrow">{group} · Chapter {number}</div><h1>{html.escape(title)}</h1><p>{html.escape(description)}</p></header>
+      <header class="article-header"><div class="eyebrow">{group} · Chapter {number}</div><h1>{html.escape(title)}</h1><p>{html.escape(description)}</p><div class="article-meta"><span>约 {minutes} 分钟阅读</span><span>更新于 {updated}</span><a href="{REPOSITORY_URL}/edit/main/content/{filename}" target="_blank" rel="noreferrer">在 GitHub 编辑 ↗</a></div></header>
       <div class="article-body">{article}</div>
       <nav class="pager">{prev_link}{next_link}</nav>
     </article>
@@ -185,6 +228,22 @@ def build() -> None:
     shutil.copy2(ROOT / "site_assets" / "site.js", OUTPUT / "assets" / "site.js")
     build_home()
     build_articles()
+    search_index = []
+    for filename, title, description, group in DOCS:
+        source = (CONTENT / filename).read_text(encoding="utf-8")
+        search_index.append(
+            {
+                "title": title,
+                "description": description,
+                "group": group,
+                "url": page_name(filename),
+                "content": plain_text(source),
+            }
+        )
+    (OUTPUT / "assets" / "search.json").write_text(
+        json.dumps(search_index, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
     print(f"Built {len(DOCS) + 1} pages in {OUTPUT}")
 
 
