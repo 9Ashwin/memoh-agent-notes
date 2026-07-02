@@ -98,9 +98,9 @@ html[data-theme="dark"] .hero-art { opacity: .45; }
 .article-body a { color: var(--brand-dark); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .article-body blockquote { margin: 28px 0; padding: 2px 0 2px 24px; border-left: 3px solid var(--brand); color: var(--muted); font: italic 400 18px/1.7 var(--serif); }
 .article-body blockquote p { margin: 8px 0; }
-.article-body code { padding: 2px 6px; border-radius: 4px; color: #99432f; background: var(--brand-soft); font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; }
+.article-body code { padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--ink-2); background: var(--paper-deep); font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; }
 .article-body pre { max-width: 100%; margin: 26px 0; padding: 22px 24px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); border-radius: 6px; color: #e8e4dc; background: #252421; box-shadow: 0 12px 34px rgba(30,25,20,.1); line-height: 1.65; }
-.article-body pre code { display: block; max-width: 100%; padding: 0; overflow-x: auto; color: inherit; background: none; }
+.article-body pre code { display: block; max-width: 100%; padding: 0; overflow-x: auto; border: 0; color: inherit; background: none; }
 .article-body table { width: 100%; margin: 28px 0; border-collapse: collapse; font-size: 14px; }
 .article-body th, .article-body td { padding: 12px 14px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
 .article-body th { color: var(--ink); background: var(--paper-deep); font-weight: 600; }
